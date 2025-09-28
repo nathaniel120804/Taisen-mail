@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taisen Mail</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBgU27k_LuVEwE0XTq5xodNSdCs02MCRZQ",
+            authDomain: "taisen-mail.firebaseapp.com",
+            projectId: "taisen-mail",
+            storageBucket: "taisen-mail.firebasestorage.app",
+            messagingSenderId: "648724504665",
+            appId: "1:648724504665:web:b80fb28d5fa2f739cd9148",
+            measurementId: "G-ZBEN2G7DYB"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Make them available globally
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.firebaseFunctions = {
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged,
+            collection,
+            addDoc,
+            query,
+            where,
+            orderBy,
+            onSnapshot,
+            updateDoc,
+            doc,
+            serverTimestamp
+        };
+    </script>
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --primary-dark: #0d47a1;
+            --secondary-color: #f1f3f4;
+            --text-color: #202124;
+            --text-light: #5f6368;
+            --border-color: #dadce0;
+            --white: #ffffff;
+            --danger: #ea4335;
+            --warning: #fbbc04;
+            --success: #34a853;
+            --spam: #f29900;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: 240px;
+            background-color: var(--white);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        
+        .logo {
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .logo i {
+            font-size: 24px;
+            color: var(--primary-color);
+            margin-right: 12px;
+        }
+        
+        .logo h1 {
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+        
+        .compose-btn {
+            margin: 16px;
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        
+        .compose-btn:hover {
+            background-color: var(--primary-dark);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .compose-btn i {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        
+        .nav-menu {
+            flex: 1;
+            padding: 8px 0;
+        }
+        
+        .nav-item {
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-radius: 0 20px 20px 0;
+            margin-right: 12px;
+        }
+        
+        .nav-item.active {
+            background-color: #e8f0fe;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .nav-item:hover:not(.active) {
+            background-color: #f1f3f4;
+        }
+        
+        .nav-item i {
+            margin-right: 16px;
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .nav-count {
+            margin-left: auto;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .top-bar {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background-color: var(--white);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .search-bar {
+            flex: 1;
+            max-width: 720px;
+            position: relative;
+            margin: 0 16px;
+        }
+        
+        .search-bar input {
+            width: 100%;
+            padding: 12px 16px 12px 48px;
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+            font-size: 16px;
+            background-color: #f1f3f4;
+            transition: background-color 0.2s;
+        }
+        
+        .search-bar input:focus {
+            background-color: var(--white);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+        }
+        
+        .search-bar i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+        }
+        
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            margin-left: 16px;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .user-menu {
+            position: absolute;
+            top: 40px;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 200px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .user-menu-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .user-menu-item:hover {
+            background-color: #f1f3f4;
+        }
+        
+        .user-menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        .email-list {
+            flex: 1;
+            background-color: var(--white);
+            overflow-y: auto;
+        }
+        
+        .email-list-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .checkbox {
+            margin-right: 16px;
+        }
+        
+        .email-actions {
+            display: flex;
+            align-items: center;
+        }
+        
+        .email-action-btn {
+            background: none;
+            border: none;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: var(--text-light);
+            margin-right: 4px;
+        }
+        
+        .email-action-btn:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .email-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .email-item:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .email-item.unread {
+            background-color: #f2f6fc;
+            font-weight: 600;
+        }
+        
+        .email-item.selected {
+            background-color: #e8f0fe;
+        }
+        
+        .email-sender {
+            width: 200px;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .email-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .email-subject {
+            font-weight: 500;
+            margin-right: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .email-preview {
+            color: var(--text-light);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .email-date {
+            width: 100px;
+            text-align: right;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        /* Authentication Styles */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        
+        .auth-box {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            padding: 48px 40px 36px;
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .auth-header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+        
+        .auth-header p {
+            color: var(--text-light);
+        }
+        
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .auth-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 16px;
+        }
+        
+        .auth-btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .auth-footer {
+            text-align: center;
+            margin-top: 32px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        .auth-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .error-message {
+            color: var(--danger);
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+        }
+        
+        /* Compose Email Modal */
+        .compose-modal {
+            position: fixed;
+            bottom: 0;
+            right: 16px;
+            width: 600px;
+            height: 500px;
+            background-color: var(--white);
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .compose-header {
+            background-color: #404040;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .compose-header h3 {
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .compose-actions button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 16px;
+        }
+        
+        .compose-body {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .compose-field {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .compose-field label {
+            width: 80px;
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        .compose-field input, .compose-field textarea {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        }
+        
+        .compose-field textarea {
+            resize: none;
+            min-height: 200px;
+            padding: 8px 0;
+        }
+        
+        .compose-footer {
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .compose-send {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .compose-send:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 72px;
+            }
+            
+            .logo h1, .nav-item span, .nav-count {
+                display: none;
+            }
+            
+            .nav-item {
+                justify-content: center;
+                margin-right: 0;
+                border-radius: 50%;
+                width: 48px;
+                height: 48px;
+                margin: 4px auto;
+            }
+            
+            .nav-item i {
+                margin-right: 0;
+            }
+            
+            .compose-btn span {
+                display: none;
+            }
+            
+            .compose-btn {
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                padding: 0;
+                margin: 16px auto;
+            }
+            
+            .compose-modal {
+                width: 100%;
+                right: 0;
+            }
+            
+            .email-sender {
+                width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Screen -->
+    <div id="authScreen" class="auth-container">
+        <div class="auth-box">
+            <div class="auth-header">
+                <h1>Sign in</h1>
+                <p>to continue to Taisen Mail</p>
+            </div>
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" placeholder="yourname@taisen.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <div class="error-message" id="loginError"></div>
+                <button type="submit" class="auth-btn" id="loginBtn">
+                    <span>Sign in</span>
+                </button>
+            </form>
+            <div class="auth-footer">
+                <p>Don't have an account? <a href="#" id="showSignup">Sign up</a></p>
+            </div>
+        </div>
+        
+        <div class="auth-box" id="signupBox" style="display: none;">
+            <div class="auth-header">
+                <h1>Create your account</h1>
+                <p>to continue to Taisen Mail</p>
+            </div>
+            <form id="signupForm" class="auth-form">
+                <div class="form-group">
+                    <label for="signupName">Full Name</label>
+                    <input type="text" id="signupName" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupEmail">Email</label>
+                    <input type="email" id="signupEmail" placeholder="yourname@taisen.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password</label>
+                    <input type="password" id="signupPassword" required>
+                </div>
+                <div class="error-message" id="signupError"></div>
+                <button type="submit" class="auth-btn" id="signupBtn">
+                    <span>Create account</span>
+                </button>
+            </form>
+            <div class="auth-footer">
+                <p>Already have an account? <a href="#" id="showLogin">Sign in</a></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Email Application -->
+    <div id="appScreen" class="container" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-envelope"></i>
+                <h1>Taisen Mail</h1>
+            </div>
+            
+            <button class="compose-btn" id="composeBtn">
+                <i class="fas fa-pen"></i>
+                <span>Compose</span>
+            </button>
+            
+            <div class="nav-menu">
+                <div class="nav-item active" data-folder="inbox">
+                    <i class="fas fa-inbox"></i>
+                    <span>Inbox</span>
+                    <span class="nav-count" id="inboxCount">0</span>
+                </div>
+                <div class="nav-item" data-folder="starred">
+                    <i class="fas fa-star"></i>
+                    <span>Starred</span>
+                </div>
+                <div class="nav-item" data-folder="sent">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Sent</span>
+                </div>
+                <div class="nav-item" data-folder="drafts">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Drafts</span>
+                    <span class="nav-count" id="draftsCount">0</span>
+                </div>
+                <div class="nav-item" data-folder="spam">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>Spam</span>
+                    <span class="nav-count" id="spamCount">0</span>
+                </div>
+                <div class="nav-item" data-folder="trash">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Trash</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="top-bar">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search mail">
+                </div>
+                
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">
+                        U
+                        <div class="user-menu" id="userMenu">
+                            <div class="user-menu-item" id="userEmail"></div>
+                            <div class="user-menu-item" id="logoutBtn">Sign out</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="email-list">
+                <div class="email-list-header">
+                    <div class="checkbox">
+                        <input type="checkbox" id="selectAll">
+                    </div>
+                    <div class="email-actions">
+                        <button class="email-action-btn" id="refreshBtn" title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="email-action-btn" id="archiveBtn" title="Archive">
+                            <i class="fas fa-archive"></i>
+                        </button>
+                        <button class="email-action-btn" id="spamBtn" title="Report spam">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </button>
+                        <button class="email-action-btn" id="deleteBtn" title="Delete">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="emailList">
+                    <!-- Email items will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Compose Email Modal -->
+    <div class="compose-modal" id="composeModal">
+        <div class="compose-header">
+            <h3>New Message</h3>
+            <div class="compose-actions">
+                <button id="minimizeCompose"><i class="fas fa-minus"></i></button>
+                <button id="maximizeCompose"><i class="fas fa-expand"></i></button>
+                <button id="closeCompose"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="compose-body">
+            <div class="compose-field">
+                <label>To</label>
+                <input type="text" id="composeTo" placeholder="Recipients">
+            </div>
+            <div class="compose-field">
+                <label>Subject</label>
+                <input type="text" id="composeSubject" placeholder="Subject">
+            </div>
+            <div class="compose-field" style="flex: 1; border: none;">
+                <textarea id="composeBody" placeholder="Compose your email"></textarea>
+            </div>
+        </div>
+        <div class="compose-footer">
+            <button class="compose-send" id="sendEmail">Send</button>
+            <div>
+                <button class="email-action-btn" title="Attach files">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <button class="email-action-btn" title="More options">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wait for Firebase to load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Firebase is loaded
+            const checkFirebase = setInterval(() => {
+                if (window.firebaseAuth && window.firebaseDb) {
+                    clearInterval(checkFirebase);
+                    initApp();
+                }
+            }, 100);
+        });
+
+        function initApp() {
+            const auth = window.firebaseAuth;
+            const db = window.firebaseDb;
+            const {
+                createUserWithEmailAndPassword,
+                signInWithEmailAndPassword,
+                signOut,
+                onAuthStateChanged,
+                collection,
+                addDoc,
+                query,
+                where,
+                orderBy,
+                onSnapshot,
+                updateDoc,
+                doc,
+                serverTimestamp
+            } = window.firebaseFunctions;
+
+            // DOM Elements
+            const authScreen = document.getElementById('authScreen');
+            const appScreen = document.getElementById('appScreen');
+            const loginForm = document.getElementById('loginForm');
+            const signupForm = document.getElementById('signupForm');
+            const showSignup = document.getElementById('showSignup');
+            const showLogin = document.getElementById('showLogin');
+            const signupBox = document.getElementById('signupBox');
+            const loginError = document.getElementById('loginError');
+            const signupError = document.getElementById('signupError');
+            const loginBtn = document.getElementById('loginBtn');
+            const signupBtn = document.getElementById('signupBtn');
+            const composeBtn = document.getElementById('composeBtn');
+            const composeModal = document.getElementById('composeModal');
+            const closeCompose = document.getElementById('closeCompose');
+            const sendEmail = document.getElementById('sendEmail');
+            const userAvatar = document.getElementById('userAvatar');
+            const userMenu = document.getElementById('userMenu');
+            const userEmail = document.getElementById('userEmail');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const emailList = document.getElementById('emailList');
+            const navItems = document.querySelectorAll('.nav-item');
+            const searchInput = document.getElementById('searchInput');
+
+            // Current user and folder state
+            let currentUser = null;
+            let currentFolder = 'inbox';
+            let emails = [];
+
+            // Authentication event listeners
+            showSignup.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginForm.parentElement.style.display = 'none';
+                signupBox.style.display = 'block';
+            });
+
+            showLogin.addEventListener('click', (e) => {
+                e.preventDefault();
+                signupBox.style.display = 'none';
+                loginForm.parentElement.style.display = 'block';
+            });
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+                
+                // Validate @taisen.com domain
+                if (!email.endsWith('@taisen.com')) {
+                    showError(loginError, 'Please use an email ending with @taisen.com');
+                    return;
+                }
+
+                try {
+                    showLoading(loginBtn);
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    currentUser = userCredential.user;
+                    hideError(loginError);
+                } catch (error) {
+                    showError(loginError, error.message);
+                } finally {
+                    hideLoading(loginBtn, 'Sign in');
+                }
+            });
+
+            signupForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('signupName').value;
+                const email = document.getElementById('signupEmail').value;
+                const password = document.getElementById('signupPassword').value;
+                
+                if (!email.endsWith('@taisen.com')) {
+                    showError(signupError, 'Please use an email ending with @taisen.com');
+                    return;
+                }
+
+                try {
+                    showLoading(signupBtn);
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    currentUser = userCredential.user;
+                    
+                    // Store user display name
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        displayName: name,
+                        email: email,
+                        createdAt: serverTimestamp()
+                    });
+                    
+                    hideError(signupError);
+                } catch (error) {
+                    showError(signupError, error.message);
+                } finally {
+                    hideLoading(signupBtn, 'Create account');
+                }
+            });
+
+            // Auth state listener
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    currentUser = user;
+                    authScreen.style.display = 'none';
+                    appScreen.style.display = 'flex';
+                    
+                    // Update UI with user info
+                    const displayName = await getUserDisplayName(user.uid);
+                    userAvatar.textContent = (displayName || user.email).charAt(0).toUpperCase();
+                    userEmail.textContent = user.email;
+                    
+                    // Load emails
+                    loadEmails();
+                } else {
+                    currentUser = null;
+                    appScreen.style.display = 'none';
+                    authScreen.style.display = 'flex';
+                }
+            });
+
+            // User menu functionality
+            userAvatar.addEventListener('click', () => {
+                userMenu.style.display = userMenu.style.display === 'block' ? 'none' : 'block';
+            });
+
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await signOut(auth);
+                    userMenu.style.display = 'none';
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+            });
+
+            // Close user menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userAvatar.contains(e.target)) {
+                    userMenu.style.display = 'none';
+                }
+            });
+
+            // Compose email functionality
+            composeBtn.addEventListener('click', () => {
+                composeModal.style.display = 'flex';
+            });
+
+            closeCompose.addEventListener('click', () => {
+                composeModal.style.display = 'none';
+            });
+
+            sendEmail.addEventListener('click', async () => {
+                const to = document.getElementById('composeTo').value;
+                const subject = document.getElementById('composeSubject').value;
+                const body = document.getElementById('composeBody').value;
+                
+                if (to && subject) {
+                    try {
+                        // Create new email document
+                        await addDoc(collection(db, 'emails'), {
+                            from: currentUser.email,
+                            fromName: await getUserDisplayName(currentUser.uid) || currentUser.email.split('@')[0],
+                            to: to,
+                            subject: subject,
+                            body: body,
+                            timestamp: serverTimestamp(),
+                            read: true,
+                            folder: 'sent',
+                            starred: false,
+                            userId: currentUser.uid
+                        });
+                        
+                        // Close compose modal
+                        composeModal.style.display = 'none';
+                        
+                        // Clear form
+                        document.getElementById('composeTo').value = '';
+                        document.getElementById('composeSubject').value = '';
+                        document.getElementById('composeBody').value = '';
+                        
+                        // Show confirmation
+                        alert('Email sent successfully!');
+                    } catch (error) {
+                        console.error('Error sending email:', error);
+                        alert('Error sending email. Please try again.');
+                    }
+                } else {
+                    alert('Please fill in both recipient and subject fields.');
+                }
+            });
+
+            // Navigation
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    // Remove active class from all items
+                    navItems.forEach(navItem => {
+                        navItem.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked item
+                    item.classList.add('active');
+                    
+                    // Update current folder
+                    currentFolder = item.getAttribute('data-folder');
+                    
+                    // Load emails for this folder
+                    loadEmails();
+                });
+            });
+
+            // Search functionality
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                
+                if (searchTerm) {
+                    const filteredEmails = emails.filter(email => 
+                        email.subject.toLowerCase().includes(searchTerm) || 
+                        email.body.toLowerCase().includes(searchTerm) ||
+                        email.fromName.toLowerCase().includes(searchTerm) ||
+                        email.to.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    displayEmails(filteredEmails);
+                } else {
+                    loadEmails();
+                }
+            });
+
+            // Function to get user display name
+            async function getUserDisplayName(uid) {
+                try {
+                    const userDoc = await doc(db, 'users', uid);
+                    // In a real implementation, you would get the document here
+                    // For now, return the email username
+                    return currentUser.email.split('@')[0];
+                } catch (error) {
+                    return currentUser.email.split('@')[0];
+                }
+            }
+
+            // Function to load and display emails from Firestore
+            function loadEmails() {
+                if (!currentUser) return;
+
+                let emailsQuery;
+                
+                if (currentFolder === 'inbox') {
+                    emailsQuery = query(
+                        collection(db, 'emails'),
+                        where('to', '==', currentUser.email),
+                        orderBy('timestamp', 'desc')
+                    );
+                } else if (currentFolder === 'sent') {
+                    emailsQuery = query(
+                        collection(db, 'emails'),
+                        where('from', '==', currentUser.email),
+                        orderBy('timestamp', 'desc')
+                    );
+                } else {
+                    emailsQuery = query(
+                        collection(db, 'emails'),
+                        where('userId', '==', currentUser.uid),
+                        where('folder', '==', currentFolder),
+                        orderBy('timestamp', 'desc')
+                    );
+                }
+
+                const unsubscribe = onSnapshot(emailsQuery, (snapshot) => {
+                    emails = [];
+                    snapshot.forEach((doc) => {
+                        const emailData = doc.data();
+                        emails.push({
+                            id: doc.id,
+                            ...emailData,
+                            timestamp: emailData.timestamp ? emailData.timestamp.toDate() : new Date()
+                        });
+                    });
+                    
+                    displayEmails(emails);
+                    updateFolderCounts();
+                }, (error) => {
+                    console.error('Error loading emails:', error);
+                });
+
+                // Store unsubscribe function for cleanup
+                window.emailUnsubscribe = unsubscribe;
+            }
+
+            // Function to display emails in the list
+            function displayEmails(emailsToShow) {
+                emailList.innerHTML = '';
+                
+                if (emailsToShow.length === 0) {
+                    emailList.innerHTML = '<div class="email-item" style="justify-content: center; color: var(--text-light);">No emails found</div>';
+                    return;
+                }
+                
+                emailsToShow.forEach(email => {
+                    const emailItem = document.createElement('div');
+                    emailItem.className = `email-item ${email.read ? '' : 'unread'}`;
+                    emailItem.setAttribute('data-id', email.id);
+                    
+                    const timeString = formatTime(email.timestamp);
+                    
+                    emailItem.innerHTML = `
+                        <div class="checkbox">
+                            <input type="checkbox" class="email-checkbox">
+                        </div>
+                        <div class="email-sender">${email.folder === 'sent' ? 'To: ' + email.to : email.fromName}</div>
+                        <div class="email-content">
+                            <div class="email-subject">${email.subject}</div>
+                            <div class="email-preview"> - ${email.body.substring(0, 50)}${email.body.length > 50 ? '...' : ''}</div>
+                        </div>
+                        <div class="email-date">${timeString}</div>
+                    `;
+                    
+                    emailItem.addEventListener('click', async () => {
+                        // Mark as read when clicked
+                        if (!email.read) {
+                            try {
+                                await updateDoc(doc(db, 'emails', email.id), {
+                                    read: true
+                                });
+                            } catch (error) {
+                                console.error('Error marking email as read:', error);
+                            }
+                        }
+                        
+                        // Show email content
+                        alert(`From: ${email.fromName}\nTo: ${email.to}\nSubject: ${email.subject}\n\n${email.body}`);
+                    });
+                    
+                    emailList.appendChild(emailItem);
+                });
+            }
+
+            // Function to update folder counts
+            function updateFolderCounts() {
+                const inboxCount = emails.filter(email => 
+                    email.to === currentUser.email && !email.read
+                ).length;
+                
+                const draftsCount = emails.filter(email => 
+                    email.folder === 'drafts'
+                ).length;
+                
+                const spamCount = emails.filter(email => 
+                    email.folder === 'spam'
+                ).length;
+                
+                document.getElementById('inboxCount').textContent = inboxCount > 0 ? inboxCount : '';
+                document.getElementById('draftsCount').textContent = draftsCount > 0 ? draftsCount : '';
+                document.getElementById('spamCount').textContent = spamCount > 0 ? spamCount : '';
+            }
+
+            // Helper function to format time
+            function formatTime(date) {
+                if (!date) return 'Unknown';
+                
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+                
+                if (diffMins < 1) {
+                    return 'Just now';
+                } else if (diffMins < 60) {
+                    return `${diffMins}m ago`;
+                } else if (diffHours < 24) {
+                    return `${diffHours}h ago`;
+                } else if (diffDays < 7) {
+                    return `${diffDays}d ago`;
+                } else {
+                    return date.toLocaleDateString();
+                }
+            }
+
+            // UI helper functions
+            function showLoading(button) {
+                button.disabled = true;
+                button.innerHTML = '<div class="loading"></div> Loading...';
+            }
+
+            function hideLoading(button, text) {
+                button.disabled = false;
+                button.innerHTML = `<span>${text}</span>`;
+            }
+
+            function showError(errorElement, message) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+            }
+
+            function hideError(errorElement) {
+                errorElement.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
