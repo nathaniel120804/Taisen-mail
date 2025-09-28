@@ -5,50 +5,634 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Taisen Mail</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBgU27k_LuVEwE0XTq5xodNSdCs02MCRZQ",
-            authDomain: "taisen-mail.firebaseapp.com",
-            projectId: "taisen-mail",
-            storageBucket: "taisen-mail.firebasestorage.app",
-            messagingSenderId: "648724504665",
-            appId: "1:648724504665:web:b80fb28d5fa2f739cd9148",
-            measurementId: "G-ZBEN2G7DYB"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // Make them available globally
-        window.firebaseAuth = auth;
-        window.firebaseDb = db;
-        window.firebaseFunctions = {
-            createUserWithEmailAndPassword,
-            signInWithEmailAndPassword,
-            signOut,
-            onAuthStateChanged,
-            collection,
-            addDoc,
-            query,
-            where,
-            orderBy,
-            onSnapshot,
-            updateDoc,
-            doc,
-            serverTimestamp
-        };
-    </script>
     <style>
-        /* ... (keep all the existing CSS styles exactly as before) ... */
-        /* All the CSS from the previous version remains the same */
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #0d47a1;
+            --secondary: #f1f3f4;
+            --text: #202124;
+            --text-light: #5f6368;
+            --border: #dadce0;
+            --white: #ffffff;
+            --danger: #ea4335;
+            --warning: #fbbc04;
+            --success: #34a853;
+            --spam: #f29900;
+            --sidebar-width: 240px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: var(--text);
+            line-height: 1.6;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Authentication Styles */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+        }
+        
+        .auth-box {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 450px;
+            padding: 48px 40px 36px;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .auth-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .auth-header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .auth-header p {
+            color: var(--text-light);
+        }
+        
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border 0.2s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+        }
+        
+        .auth-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 16px;
+        }
+        
+        .auth-btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .auth-footer {
+            text-align: center;
+            margin-top: 32px;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        .auth-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .error-message {
+            color: var(--danger);
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+            text-align: center;
+            padding: 8px;
+            background-color: #fce8e6;
+            border-radius: 4px;
+        }
+        
+        /* App Container */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            transition: all 0.3s ease;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--white);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .logo {
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo i {
+            font-size: 28px;
+            color: var(--primary);
+            margin-right: 12px;
+        }
+        
+        .logo h1 {
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        
+        .compose-btn {
+            margin: 16px;
+            padding: 12px 24px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        
+        .compose-btn:hover {
+            background-color: var(--primary-dark);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .compose-btn i {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+        
+        .nav-menu {
+            flex: 1;
+            padding: 8px 0;
+        }
+        
+        .nav-item {
+            padding: 8px 24px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-radius: 0 20px 20px 0;
+            margin-right: 12px;
+            color: var(--text);
+            text-decoration: none;
+        }
+        
+        .nav-item.active {
+            background-color: #e8f0fe;
+            color: var(--primary);
+            font-weight: 500;
+        }
+        
+        .nav-item:hover:not(.active) {
+            background-color: #f1f3f4;
+        }
+        
+        .nav-item i {
+            margin-right: 16px;
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .nav-count {
+            margin-left: auto;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .top-bar {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background-color: var(--white);
+            border-bottom: 1px solid var(--border);
+            min-height: 64px;
+        }
+        
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-light);
+            cursor: pointer;
+            margin-right: 16px;
+        }
+        
+        .search-bar {
+            flex: 1;
+            max-width: 720px;
+            position: relative;
+            margin: 0 16px;
+        }
+        
+        .search-bar input {
+            width: 100%;
+            padding: 12px 16px 12px 48px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            font-size: 16px;
+            background-color: #f1f3f4;
+            transition: background-color 0.2s;
+        }
+        
+        .search-bar input:focus {
+            background-color: var(--white);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+        }
+        
+        .search-bar i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            position: relative;
+        }
+        
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            margin-left: 16px;
+            cursor: pointer;
+        }
+        
+        .user-menu {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 200px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .user-menu-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        
+        .user-menu-item:hover {
+            background-color: #f1f3f4;
+        }
+        
+        .user-menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* Email List Styles */
+        .email-list-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--white);
+            overflow: hidden;
+        }
+        
+        .email-list-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            background-color: #f8f9fa;
+        }
+        
+        .checkbox {
+            margin-right: 16px;
+        }
+        
+        .email-actions {
+            display: flex;
+            align-items: center;
+        }
+        
+        .email-action-btn {
+            background: none;
+            border: none;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: var(--text-light);
+            margin-right: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .email-action-btn:hover {
+            background-color: var(--secondary);
+        }
+        
+        .email-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .email-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .email-item:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .email-item.unread {
+            background-color: #f2f6fc;
+            font-weight: 600;
+        }
+        
+        .email-item.selected {
+            background-color: #e8f0fe;
+        }
+        
+        .email-sender {
+            width: 200px;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .email-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .email-subject {
+            font-weight: 500;
+            margin-right: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .email-preview {
+            color: var(--text-light);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .email-date {
+            width: 100px;
+            text-align: right;
+            color: var(--text-light);
+            font-size: 14px;
+        }
+        
+        /* Compose Modal */
+        .compose-modal {
+            position: fixed;
+            bottom: 0;
+            right: 16px;
+            width: 600px;
+            height: 500px;
+            background-color: var(--white);
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .compose-header {
+            background-color: #404040;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .compose-header h3 {
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .compose-actions button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 16px;
+        }
+        
+        .compose-body {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .compose-field {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .compose-field label {
+            width: 80px;
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        .compose-field input, .compose-field textarea {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        }
+        
+        .compose-field textarea {
+            resize: none;
+            min-height: 200px;
+            padding: 8px 0;
+        }
+        
+        .compose-footer {
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border);
+        }
+        
+        .compose-send {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        
+        .compose-send:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        /* Loading and Status */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -100%;
+                height: 100%;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            }
+            
+            .sidebar.active {
+                left: 0;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+            
+            .compose-modal {
+                width: 100%;
+                right: 0;
+            }
+            
+            .email-sender {
+                width: 120px;
+            }
+            
+            .nav-item span {
+                display: block;
+            }
+        }
+        
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-light);
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #dadce0;
+        }
+        
+        .empty-state h3 {
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
@@ -56,17 +640,18 @@
     <div id="authScreen" class="auth-container">
         <div class="auth-box">
             <div class="auth-header">
-                <h1>Sign in</h1>
-                <p>to continue to Taisen Mail</p>
+                <i class="fas fa-envelope" style="font-size: 48px; color: #1a73e8; margin-bottom: 16px;"></i>
+                <h1>Welcome to Taisen Mail</h1>
+                <p>Sign in to continue to your email</p>
             </div>
             <form id="loginForm" class="auth-form">
                 <div class="form-group">
-                    <label for="loginEmail">Email</label>
+                    <label for="loginEmail">Email address</label>
                     <input type="email" id="loginEmail" placeholder="yourname@taisen.com" required>
                 </div>
                 <div class="form-group">
                     <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" required>
+                    <input type="password" id="loginPassword" placeholder="Enter your password" required>
                 </div>
                 <div class="error-message" id="loginError"></div>
                 <button type="submit" class="auth-btn" id="loginBtn">
@@ -74,27 +659,28 @@
                 </button>
             </form>
             <div class="auth-footer">
-                <p>Don't have an account? <a href="#" id="showSignup">Sign up</a></p>
+                <p>Don't have an account? <a href="#" id="showSignup">Create account</a></p>
             </div>
         </div>
         
         <div class="auth-box" id="signupBox" style="display: none;">
             <div class="auth-header">
+                <i class="fas fa-envelope" style="font-size: 48px; color: #1a73e8; margin-bottom: 16px;"></i>
                 <h1>Create your account</h1>
-                <p>to continue to Taisen Mail</p>
+                <p>Sign up for Taisen Mail</p>
             </div>
             <form id="signupForm" class="auth-form">
                 <div class="form-group">
-                    <label for="signupName">Full Name</label>
-                    <input type="text" id="signupName" required>
+                    <label for="signupName">Full name</label>
+                    <input type="text" id="signupName" placeholder="Enter your full name" required>
                 </div>
                 <div class="form-group">
-                    <label for="signupEmail">Email</label>
+                    <label for="signupEmail">Email address</label>
                     <input type="email" id="signupEmail" placeholder="yourname@taisen.com" required>
                 </div>
                 <div class="form-group">
                     <label for="signupPassword">Password</label>
-                    <input type="password" id="signupPassword" required>
+                    <input type="password" id="signupPassword" placeholder="Create a password" required>
                 </div>
                 <div class="error-message" id="signupError"></div>
                 <button type="submit" class="auth-btn" id="signupBtn">
@@ -108,7 +694,7 @@
     </div>
     
     <!-- Email Application -->
-    <div id="appScreen" class="container" style="display: none;">
+    <div id="appScreen" class="app-container" style="display: none;">
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="logo">
@@ -122,39 +708,43 @@
             </button>
             
             <div class="nav-menu">
-                <div class="nav-item active" data-folder="inbox">
+                <a class="nav-item active" data-folder="inbox">
                     <i class="fas fa-inbox"></i>
                     <span>Inbox</span>
-                    <span class="nav-count" id="inboxCount">0</span>
-                </div>
-                <div class="nav-item" data-folder="starred">
+                    <span class="nav-count" id="inboxCount">3</span>
+                </a>
+                <a class="nav-item" data-folder="starred">
                     <i class="fas fa-star"></i>
                     <span>Starred</span>
-                </div>
-                <div class="nav-item" data-folder="sent">
+                </a>
+                <a class="nav-item" data-folder="sent">
                     <i class="fas fa-paper-plane"></i>
                     <span>Sent</span>
-                </div>
-                <div class="nav-item" data-folder="drafts">
+                </a>
+                <a class="nav-item" data-folder="drafts">
                     <i class="fas fa-file-alt"></i>
                     <span>Drafts</span>
-                    <span class="nav-count" id="draftsCount">0</span>
-                </div>
-                <div class="nav-item" data-folder="spam">
+                    <span class="nav-count" id="draftsCount">1</span>
+                </a>
+                <a class="nav-item" data-folder="spam">
                     <i class="fas fa-exclamation-circle"></i>
                     <span>Spam</span>
                     <span class="nav-count" id="spamCount">0</span>
-                </div>
-                <div class="nav-item" data-folder="trash">
+                </a>
+                <a class="nav-item" data-folder="trash">
                     <i class="fas fa-trash-alt"></i>
                     <span>Trash</span>
-                </div>
+                </a>
             </div>
         </div>
         
         <!-- Main Content -->
         <div class="main-content">
             <div class="top-bar">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
                 <div class="search-bar">
                     <i class="fas fa-search"></i>
                     <input type="text" id="searchInput" placeholder="Search mail">
@@ -164,14 +754,14 @@
                     <div class="avatar" id="userAvatar">
                         U
                         <div class="user-menu" id="userMenu">
-                            <div class="user-menu-item" id="userEmail"></div>
+                            <div class="user-menu-item" id="userEmail">user@taisen.com</div>
                             <div class="user-menu-item" id="logoutBtn">Sign out</div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div class="email-list">
+            <div class="email-list-container">
                 <div class="email-list-header">
                     <div class="checkbox">
                         <input type="checkbox" id="selectAll">
@@ -192,7 +782,7 @@
                     </div>
                 </div>
                 
-                <div id="emailList">
+                <div class="email-list" id="emailList">
                     <!-- Email items will be dynamically inserted here -->
                 </div>
             </div>
@@ -212,7 +802,7 @@
         <div class="compose-body">
             <div class="compose-field">
                 <label>To</label>
-                <input type="text" id="composeTo" placeholder="Recipients (any email address)">
+                <input type="text" id="composeTo" placeholder="Recipients">
             </div>
             <div class="compose-field">
                 <label>Subject</label>
@@ -236,502 +826,441 @@
     </div>
 
     <script>
-        // Wait for Firebase to load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if Firebase is loaded
-            const checkFirebase = setInterval(() => {
-                if (window.firebaseAuth && window.firebaseDb) {
-                    clearInterval(checkFirebase);
-                    initApp();
-                }
-            }, 100);
-        });
-
-        function initApp() {
-            const auth = window.firebaseAuth;
-            const db = window.firebaseDb;
-            const {
-                createUserWithEmailAndPassword,
-                signInWithEmailAndPassword,
-                signOut,
-                onAuthStateChanged,
-                collection,
-                addDoc,
-                query,
-                where,
-                orderBy,
-                onSnapshot,
-                updateDoc,
-                doc,
-                serverTimestamp
-            } = window.firebaseFunctions;
-
-            // DOM Elements
-            const authScreen = document.getElementById('authScreen');
-            const appScreen = document.getElementById('appScreen');
-            const loginForm = document.getElementById('loginForm');
-            const signupForm = document.getElementById('signupForm');
-            const showSignup = document.getElementById('showSignup');
-            const showLogin = document.getElementById('showLogin');
-            const signupBox = document.getElementById('signupBox');
-            const loginError = document.getElementById('loginError');
-            const signupError = document.getElementById('signupError');
-            const loginBtn = document.getElementById('loginBtn');
-            const signupBtn = document.getElementById('signupBtn');
-            const composeBtn = document.getElementById('composeBtn');
-            const composeModal = document.getElementById('composeModal');
-            const closeCompose = document.getElementById('closeCompose');
-            const sendEmail = document.getElementById('sendEmail');
-            const userAvatar = document.getElementById('userAvatar');
-            const userMenu = document.getElementById('userMenu');
-            const userEmail = document.getElementById('userEmail');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const emailList = document.getElementById('emailList');
-            const navItems = document.querySelectorAll('.nav-item');
-            const searchInput = document.getElementById('searchInput');
-
-            // Current user and folder state
-            let currentUser = null;
-            let currentFolder = 'inbox';
-            let emails = [];
-
-            // Authentication event listeners
-            showSignup.addEventListener('click', (e) => {
-                e.preventDefault();
-                loginForm.parentElement.style.display = 'none';
-                signupBox.style.display = 'block';
-            });
-
-            showLogin.addEventListener('click', (e) => {
-                e.preventDefault();
-                signupBox.style.display = 'none';
-                loginForm.parentElement.style.display = 'block';
-            });
-
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('loginEmail').value;
-                const password = document.getElementById('loginPassword').value;
-                
-                // Validate @taisen.com domain for sign-in (only requirement for Taisen accounts)
-                if (!email.endsWith('@taisen.com')) {
-                    showError(loginError, 'Please use your Taisen Mail account (@taisen.com)');
-                    return;
-                }
-
-                try {
-                    showLoading(loginBtn);
-                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                    currentUser = userCredential.user;
-                    hideError(loginError);
-                } catch (error) {
-                    showError(loginError, error.message);
-                } finally {
-                    hideLoading(loginBtn, 'Sign in');
-                }
-            });
-
-            signupForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const name = document.getElementById('signupName').value;
-                const email = document.getElementById('signupEmail').value;
-                const password = document.getElementById('signupPassword').value;
-                
-                // Only allow @taisen.com accounts to sign up
-                if (!email.endsWith('@taisen.com')) {
-                    showError(signupError, 'Taisen Mail is only available for @taisen.com accounts');
-                    return;
-                }
-
-                try {
-                    showLoading(signupBtn);
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    currentUser = userCredential.user;
-                    
-                    // Store user display name
-                    await addDoc(collection(db, 'users'), {
-                        uid: currentUser.uid,
-                        displayName: name,
-                        email: email,
-                        createdAt: serverTimestamp()
-                    });
-                    
-                    hideError(signupError);
-                } catch (error) {
-                    showError(signupError, error.message);
-                } finally {
-                    hideLoading(signupBtn, 'Create account');
-                }
-            });
-
-            // Auth state listener
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    currentUser = user;
-                    authScreen.style.display = 'none';
-                    appScreen.style.display = 'flex';
-                    
-                    // Update UI with user info
-                    const displayName = await getUserDisplayName(user.uid);
-                    userAvatar.textContent = (displayName || user.email).charAt(0).toUpperCase();
-                    userEmail.textContent = user.email;
-                    
-                    // Load emails
-                    loadEmails();
-                } else {
-                    currentUser = null;
-                    appScreen.style.display = 'none';
-                    authScreen.style.display = 'flex';
-                }
-            });
-
-            // User menu functionality
-            userAvatar.addEventListener('click', () => {
-                userMenu.style.display = userMenu.style.display === 'block' ? 'none' : 'block';
-            });
-
-            logoutBtn.addEventListener('click', async () => {
-                try {
-                    await signOut(auth);
-                    userMenu.style.display = 'none';
-                } catch (error) {
-                    console.error('Logout error:', error);
-                }
-            });
-
-            // Close user menu when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!userAvatar.contains(e.target)) {
-                    userMenu.style.display = 'none';
-                }
-            });
-
-            // Compose email functionality
-            composeBtn.addEventListener('click', () => {
-                composeModal.style.display = 'flex';
-            });
-
-            closeCompose.addEventListener('click', () => {
-                composeModal.style.display = 'none';
-            });
-
-            sendEmail.addEventListener('click', async () => {
-                const to = document.getElementById('composeTo').value;
-                const subject = document.getElementById('composeSubject').value;
-                const body = document.getElementById('composeBody').value;
-                
-                if (!to || !subject) {
-                    alert('Please fill in both recipient and subject fields.');
-                    return;
-                }
-
-                // Basic email validation (any valid email format)
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(to)) {
-                    alert('Please enter a valid email address for the recipient.');
-                    return;
-                }
-
-                try {
-                    // Show sending state
-                    sendEmail.innerHTML = '<div class="loading"></div> Sending...';
-                    sendEmail.disabled = true;
-
-                    // Get user display name
-                    const displayName = await getUserDisplayName(currentUser.uid);
-                    
-                    // Create new email document
-                    const emailData = {
-                        from: currentUser.email,
-                        fromName: displayName || currentUser.email.split('@')[0],
-                        to: to,
-                        subject: subject,
-                        body: body,
-                        timestamp: serverTimestamp(),
-                        read: true,
-                        folder: 'sent',
-                        starred: false,
-                        userId: currentUser.uid,
-                        recipientDomain: to.split('@')[1] // Store domain for filtering
-                    };
-
-                    console.log('Sending email with data:', emailData);
-                    
-                    const docRef = await addDoc(collection(db, 'emails'), emailData);
-                    console.log('Email sent successfully with ID:', docRef.id);
-                    
-                    // Close compose modal
-                    composeModal.style.display = 'none';
-                    
-                    // Clear form
-                    document.getElementById('composeTo').value = '';
-                    document.getElementById('composeSubject').value = '';
-                    document.getElementById('composeBody').value = '';
-                    
-                    // Show confirmation
-                    alert(`Email sent successfully to ${to}!`);
-                    
-                } catch (error) {
-                    console.error('Error sending email:', error);
-                    alert('Error sending email: ' + error.message);
-                } finally {
-                    // Reset send button
-                    sendEmail.innerHTML = 'Send';
-                    sendEmail.disabled = false;
-                }
-            });
-
-            // Navigation
-            navItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    // Remove active class from all items
-                    navItems.forEach(navItem => {
-                        navItem.classList.remove('active');
-                    });
-                    
-                    // Add active class to clicked item
-                    item.classList.add('active');
-                    
-                    // Update current folder
-                    currentFolder = item.getAttribute('data-folder');
-                    
-                    // Load emails for this folder
-                    loadEmails();
-                });
-            });
-
-            // Search functionality
-            searchInput.addEventListener('input', (e) => {
-                const searchTerm = e.target.value.toLowerCase();
-                
-                if (searchTerm) {
-                    const filteredEmails = emails.filter(email => 
-                        email.subject.toLowerCase().includes(searchTerm) || 
-                        email.body.toLowerCase().includes(searchTerm) ||
-                        (email.fromName && email.fromName.toLowerCase().includes(searchTerm)) ||
-                        email.to.toLowerCase().includes(searchTerm)
-                    );
-                    
-                    displayEmails(filteredEmails);
-                } else {
-                    loadEmails();
-                }
-            });
-
-            // Function to get user display name
-            async function getUserDisplayName(uid) {
-                try {
-                    // For now, just return the email username
-                    return currentUser.email.split('@')[0];
-                } catch (error) {
-                    return currentUser.email.split('@')[0];
-                }
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBgU27k_LuVEwE0XTq5xodNSdCs02MCRZQ",
+            authDomain: "taisen-mail.firebaseapp.com",
+            projectId: "taisen-mail",
+            storageBucket: "taisen-mail.firebasestorage.app",
+            messagingSenderId: "648724504665",
+            appId: "1:648724504665:web:b80fb28d5fa2f739cd9148",
+            measurementId: "G-ZBEN2G7DYB"
+        };
+        
+        // Demo data for emails
+        const demoEmails = [
+            {
+                id: '1',
+                from: 'support@taisen.com',
+                fromName: 'Taisen Support',
+                to: 'user@taisen.com',
+                subject: 'Welcome to Taisen Mail',
+                body: 'Thank you for choosing Taisen Mail. We are excited to have you on board. This is a demo email to show you how your inbox will look.',
+                timestamp: new Date(Date.now() - 3600000),
+                read: false,
+                folder: 'inbox',
+                starred: false
+            },
+            {
+                id: '2',
+                from: 'news@taisen.com',
+                fromName: 'Taisen News',
+                to: 'user@taisen.com',
+                subject: 'Latest Updates and Features',
+                body: 'Check out the latest features and updates to Taisen Mail. We have added several new functionalities to improve your email experience.',
+                timestamp: new Date(Date.now() - 7200000),
+                read: true,
+                folder: 'inbox',
+                starred: true
+            },
+            {
+                id: '3',
+                from: 'user@taisen.com',
+                fromName: 'You',
+                to: 'friend@gmail.com',
+                subject: 'Meeting Tomorrow',
+                body: 'Just confirming our meeting tomorrow at 10 AM. Please bring the project documents we discussed last week.',
+                timestamp: new Date(Date.now() - 86400000),
+                read: true,
+                folder: 'sent',
+                starred: false
+            },
+            {
+                id: '4',
+                from: 'user@taisen.com',
+                fromName: 'You',
+                to: 'team@company.com',
+                subject: 'Project Draft',
+                body: 'Here is the initial draft of the project proposal. Please review and provide feedback by Friday.',
+                timestamp: new Date(Date.now() - 172800000),
+                read: true,
+                folder: 'drafts',
+                starred: false
             }
-
-            // Function to load and display emails from Firestore
-            function loadEmails() {
-                if (!currentUser) return;
-
-                let emailsQuery;
+        ];
+        
+        // DOM Elements
+        const authScreen = document.getElementById('authScreen');
+        const appScreen = document.getElementById('appScreen');
+        const loginForm = document.getElementById('loginForm');
+        const signupForm = document.getElementById('signupForm');
+        const showSignup = document.getElementById('showSignup');
+        const showLogin = document.getElementById('showLogin');
+        const signupBox = document.getElementById('signupBox');
+        const loginError = document.getElementById('loginError');
+        const signupError = document.getElementById('signupError');
+        const loginBtn = document.getElementById('loginBtn');
+        const signupBtn = document.getElementById('signupBtn');
+        const composeBtn = document.getElementById('composeBtn');
+        const composeModal = document.getElementById('composeModal');
+        const closeCompose = document.getElementById('closeCompose');
+        const sendEmail = document.getElementById('sendEmail');
+        const userAvatar = document.getElementById('userAvatar');
+        const userMenu = document.getElementById('userMenu');
+        const userEmail = document.getElementById('userEmail');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const emailList = document.getElementById('emailList');
+        const navItems = document.querySelectorAll('.nav-item');
+        const searchInput = document.getElementById('searchInput');
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.querySelector('.sidebar');
+        
+        // Current user and folder state
+        let currentUser = null;
+        let currentFolder = 'inbox';
+        let emails = [...demoEmails];
+        
+        // Authentication event listeners
+        showSignup.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.parentElement.style.display = 'none';
+            signupBox.style.display = 'block';
+        });
+        
+        showLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            signupBox.style.display = 'none';
+            loginForm.parentElement.style.display = 'block';
+        });
+        
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            // Simulate Firebase authentication
+            if (email.endsWith('@taisen.com') && password.length >= 6) {
+                currentUser = {
+                    email: email,
+                    displayName: email.split('@')[0]
+                };
                 
-                if (currentFolder === 'inbox') {
-                    emailsQuery = query(
-                        collection(db, 'emails'),
-                        where('to', '==', currentUser.email),
-                        orderBy('timestamp', 'desc')
-                    );
-                } else if (currentFolder === 'sent') {
-                    emailsQuery = query(
-                        collection(db, 'emails'),
-                        where('from', '==', currentUser.email),
-                        orderBy('timestamp', 'desc')
-                    );
-                } else {
-                    // For other folders, we need to create them first
-                    emailsQuery = query(
-                        collection(db, 'emails'),
-                        where('userId', '==', currentUser.uid),
-                        where('folder', '==', currentFolder),
-                        orderBy('timestamp', 'desc')
-                    );
+                // Show app and hide auth
+                authScreen.style.display = 'none';
+                appScreen.style.display = 'flex';
+                
+                // Update UI with user info
+                userAvatar.textContent = currentUser.displayName.charAt(0).toUpperCase();
+                userEmail.textContent = currentUser.email;
+                
+                // Load emails
+                loadEmails();
+                
+                // Hide error message
+                loginError.style.display = 'none';
+            } else {
+                loginError.textContent = 'Invalid email or password. Use @taisen.com email and password with at least 6 characters.';
+                loginError.style.display = 'block';
+            }
+        });
+        
+        signupForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            if (!email.endsWith('@taisen.com')) {
+                signupError.textContent = 'Please use an email ending with @taisen.com';
+                signupError.style.display = 'block';
+                return;
+            }
+            
+            if (password.length < 6) {
+                signupError.textContent = 'Password must be at least 6 characters long';
+                signupError.style.display = 'block';
+                return;
+            }
+            
+            // Simulate account creation
+            currentUser = {
+                email: email,
+                displayName: name || email.split('@')[0]
+            };
+            
+            // Show app and hide auth
+            authScreen.style.display = 'none';
+            appScreen.style.display = 'flex';
+            
+            // Update UI with user info
+            userAvatar.textContent = currentUser.displayName.charAt(0).toUpperCase();
+            userEmail.textContent = currentUser.email;
+            
+            // Load emails
+            loadEmails();
+            
+            // Hide error message
+            signupError.style.display = 'none';
+        });
+        
+        // User menu functionality
+        userAvatar.addEventListener('click', () => {
+            userMenu.style.display = userMenu.style.display === 'block' ? 'none' : 'block';
+        });
+        
+        logoutBtn.addEventListener('click', () => {
+            currentUser = null;
+            appScreen.style.display = 'none';
+            authScreen.style.display = 'flex';
+            userMenu.style.display = 'none';
+            
+            // Reset forms
+            loginForm.reset();
+            signupForm.reset();
+        });
+        
+        // Close user menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!userAvatar.contains(e.target)) {
+                userMenu.style.display = 'none';
+            }
+        });
+        
+        // Compose email functionality
+        composeBtn.addEventListener('click', () => {
+            composeModal.style.display = 'flex';
+        });
+        
+        closeCompose.addEventListener('click', () => {
+            composeModal.style.display = 'none';
+        });
+        
+        sendEmail.addEventListener('click', () => {
+            const to = document.getElementById('composeTo').value;
+            const subject = document.getElementById('composeSubject').value;
+            const body = document.getElementById('composeBody').value;
+            
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(to)) {
+                alert('Please enter a valid email address for the recipient.');
+                return;
+            }
+            
+            if (to && subject) {
+                // Create new email object
+                const newEmail = {
+                    id: Date.now().toString(),
+                    from: currentUser.email,
+                    fromName: currentUser.displayName,
+                    to: to,
+                    subject: subject,
+                    body: body,
+                    timestamp: new Date(),
+                    read: true,
+                    folder: 'sent',
+                    starred: false
+                };
+                
+                // Add to emails array
+                emails.push(newEmail);
+                
+                // Close compose modal
+                composeModal.style.display = 'none';
+                
+                // Clear form
+                document.getElementById('composeTo').value = '';
+                document.getElementById('composeSubject').value = '';
+                document.getElementById('composeBody').value = '';
+                
+                // If we're in the sent folder, reload emails
+                if (currentFolder === 'sent') {
+                    loadEmails();
                 }
-
-                // Clean up previous listener if exists
-                if (window.emailUnsubscribe) {
-                    window.emailUnsubscribe();
+                
+                // Show confirmation
+                alert(`Email sent successfully to ${to}!`);
+            } else {
+                alert('Please fill in both recipient and subject fields.');
+            }
+        });
+        
+        // Navigation
+        navItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // Remove active class from all items
+                navItems.forEach(navItem => {
+                    navItem.classList.remove('active');
+                });
+                
+                // Add active class to clicked item
+                item.classList.add('active');
+                
+                // Update current folder
+                currentFolder = item.getAttribute('data-folder');
+                
+                // Load emails for this folder
+                loadEmails();
+                
+                // Close sidebar on mobile
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
                 }
-
-                window.emailUnsubscribe = onSnapshot(emailsQuery, 
-                    (snapshot) => {
-                        emails = [];
-                        snapshot.forEach((doc) => {
-                            const emailData = doc.data();
-                            emails.push({
-                                id: doc.id,
-                                ...emailData,
-                                timestamp: emailData.timestamp ? emailData.timestamp.toDate() : new Date()
-                            });
-                        });
-                        
-                        console.log(`Loaded ${emails.length} emails for folder: ${currentFolder}`);
-                        displayEmails(emails);
-                        updateFolderCounts();
-                    }, 
-                    (error) => {
-                        console.error('Error loading emails:', error);
-                        // If there's an error (like no index), try a simpler query
-                        if (error.code === 'failed-precondition') {
-                            const simpleQuery = query(
-                                collection(db, 'emails'),
-                                where('userId', '==', currentUser.uid),
-                                orderBy('timestamp', 'desc')
-                            );
-                            
-                            window.emailUnsubscribe = onSnapshot(simpleQuery, (simpleSnapshot) => {
-                                emails = [];
-                                simpleSnapshot.forEach((doc) => {
-                                    const emailData = doc.data();
-                                    // Filter by folder client-side
-                                    if (currentFolder === 'inbox' && emailData.to === currentUser.email) {
-                                        emails.push({
-                                            id: doc.id,
-                                            ...emailData,
-                                            timestamp: emailData.timestamp ? emailData.timestamp.toDate() : new Date()
-                                        });
-                                    } else if (currentFolder === 'sent' && emailData.from === currentUser.email) {
-                                        emails.push({
-                                            id: doc.id,
-                                            ...emailData,
-                                            timestamp: emailData.timestamp ? emailData.timestamp.toDate() : new Date()
-                                        });
-                                    } else if (emailData.folder === currentFolder) {
-                                        emails.push({
-                                            id: doc.id,
-                                            ...emailData,
-                                            timestamp: emailData.timestamp ? emailData.timestamp.toDate() : new Date()
-                                        });
-                                    }
-                                });
-                                
-                                displayEmails(emails);
-                                updateFolderCounts();
-                            });
-                        }
-                    }
+            });
+        });
+        
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (searchTerm) {
+                const filteredEmails = emails.filter(email => 
+                    email.subject.toLowerCase().includes(searchTerm) || 
+                    email.body.toLowerCase().includes(searchTerm) ||
+                    email.fromName.toLowerCase().includes(searchTerm) ||
+                    email.to.toLowerCase().includes(searchTerm)
+                );
+                
+                displayEmails(filteredEmails);
+            } else {
+                loadEmails();
+            }
+        });
+        
+        // Mobile menu toggle
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+        
+        // Function to load and display emails
+        function loadEmails() {
+            let folderEmails = emails.filter(email => email.folder === currentFolder);
+            
+            // If inbox, also show emails that aren't specifically in other folders
+            if (currentFolder === 'inbox') {
+                folderEmails = emails.filter(email => 
+                    email.folder === 'inbox' || 
+                    !['sent', 'drafts', 'spam', 'trash'].includes(email.folder)
                 );
             }
-
-            // Function to display emails in the list
-            function displayEmails(emailsToShow) {
-                emailList.innerHTML = '';
+            
+            // Sort by timestamp (newest first)
+            folderEmails.sort((a, b) => b.timestamp - a.timestamp);
+            
+            displayEmails(folderEmails);
+            updateFolderCounts();
+        }
+        
+        // Function to display emails in the list
+        function displayEmails(emailsToShow) {
+            emailList.innerHTML = '';
+            
+            if (emailsToShow.length === 0) {
+                emailList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No emails found</h3>
+                        <p>There are no emails in ${currentFolder}.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            emailsToShow.forEach(email => {
+                const emailItem = document.createElement('div');
+                emailItem.className = `email-item ${email.read ? '' : 'unread'}`;
+                emailItem.setAttribute('data-id', email.id);
                 
-                if (emailsToShow.length === 0) {
-                    emailList.innerHTML = '<div class="email-item" style="justify-content: center; color: var(--text-light);">No emails found</div>';
-                    return;
-                }
+                const timeString = formatTime(email.timestamp);
+                const senderDisplay = email.folder === 'sent' ? `To: ${email.to}` : email.fromName;
                 
-                emailsToShow.forEach(email => {
-                    const emailItem = document.createElement('div');
-                    emailItem.className = `email-item ${email.read ? '' : 'unread'}`;
-                    emailItem.setAttribute('data-id', email.id);
+                emailItem.innerHTML = `
+                    <div class="checkbox">
+                        <input type="checkbox" class="email-checkbox">
+                    </div>
+                    <div class="email-sender">${senderDisplay}</div>
+                    <div class="email-content">
+                        <div class="email-subject">${email.subject}</div>
+                        <div class="email-preview"> - ${email.body.substring(0, 50)}${email.body.length > 50 ? '...' : ''}</div>
+                    </div>
+                    <div class="email-date">${timeString}</div>
+                `;
+                
+                emailItem.addEventListener('click', () => {
+                    // Mark as read when clicked
+                    if (!email.read) {
+                        email.read = true;
+                        emailItem.classList.remove('unread');
+                        updateFolderCounts();
+                    }
                     
-                    const timeString = formatTime(email.timestamp);
-                    const senderDisplay = currentFolder === 'sent' ? `To: ${email.to}` : (email.fromName || email.from);
-                    
-                    emailItem.innerHTML = `
-                        <div class="checkbox">
-                            <input type="checkbox" class="email-checkbox">
-                        </div>
-                        <div class="email-sender">${senderDisplay}</div>
-                        <div class="email-content">
-                            <div class="email-subject">${email.subject || 'No subject'}</div>
-                            <div class="email-preview"> - ${(email.body || '').substring(0, 50)}${email.body && email.body.length > 50 ? '...' : ''}</div>
-                        </div>
-                        <div class="email-date">${timeString}</div>
-                    `;
-                    
-                    emailItem.addEventListener('click', async () => {
-                        // Mark as read when clicked
-                        if (!email.read) {
-                            try {
-                                await updateDoc(doc(db, 'emails', email.id), {
-                                    read: true
-                                });
-                            } catch (error) {
-                                console.error('Error marking email as read:', error);
-                            }
-                        }
-                        
-                        // Show email content
-                        alert(`From: ${email.fromName || email.from}\nTo: ${email.to}\nSubject: ${email.subject || 'No subject'}\n\n${email.body || 'No content'}`);
-                    });
-                    
-                    emailList.appendChild(emailItem);
+                    // In a real app, this would open the email in a reading pane
+                    alert(`From: ${email.fromName}\nTo: ${email.to}\nSubject: ${email.subject}\n\n${email.body}`);
                 });
-            }
-
-            // Function to update folder counts
-            function updateFolderCounts() {
-                const inboxCount = emails.filter(email => 
-                    email.to === currentUser.email && !email.read
-                ).length;
                 
-                const draftsCount = emails.filter(email => 
-                    email.folder === 'drafts'
-                ).length;
-                
-                const spamCount = emails.filter(email => 
-                    email.folder === 'spam'
-                ).length;
-                
-                document.getElementById('inboxCount').textContent = inboxCount > 0 ? inboxCount : '';
-                document.getElementById('draftsCount').textContent = draftsCount > 0 ? draftsCount : '';
-                document.getElementById('spamCount').textContent = spamCount > 0 ? spamCount : '';
-            }
-
-            // Helper function to format time
-            function formatTime(date) {
-                if (!date) return 'Unknown';
-                
-                const now = new Date();
-                const diffMs = now - date;
-                const diffMins = Math.floor(diffMs / 60000);
-                const diffHours = Math.floor(diffMs / 3600000);
-                const diffDays = Math.floor(diffMs / 86400000);
-                
-                if (diffMins < 1) {
-                    return 'Just now';
-                } else if (diffMins < 60) {
-                    return `${diffMins}m ago`;
-                } else if (diffHours < 24) {
-                    return `${diffHours}h ago`;
-                } else if (diffDays < 7) {
-                    return `${diffDays}d ago`;
-                } else {
-                    return date.toLocaleDateString();
-                }
-            }
-
-            // UI helper functions
-            function showLoading(button) {
-                button.disabled = true;
-                button.innerHTML = '<div class="loading"></div> Loading...';
-            }
-
-            function hideLoading(button, text) {
-                button.disabled = false;
-                button.innerHTML = `<span>${text}</span>`;
-            }
-
-            function showError(errorElement, message) {
-                errorElement.textContent = message;
-                errorElement.style.display = 'block';
-            }
-
-            function hideError(errorElement) {
-                errorElement.style.display = 'none';
+                emailList.appendChild(emailItem);
+            });
+        }
+        
+        // Function to update folder counts
+        function updateFolderCounts() {
+            const inboxCount = emails.filter(email => 
+                (email.folder === 'inbox' || !['sent', 'drafts', 'spam', 'trash'].includes(email.folder)) && 
+                !email.read
+            ).length;
+            
+            const draftsCount = emails.filter(email => 
+                email.folder === 'drafts'
+            ).length;
+            
+            const spamCount = emails.filter(email => 
+                email.folder === 'spam'
+            ).length;
+            
+            document.getElementById('inboxCount').textContent = inboxCount > 0 ? inboxCount : '';
+            document.getElementById('draftsCount').textContent = draftsCount > 0 ? draftsCount : '';
+            document.getElementById('spamCount').textContent = spamCount > 0 ? spamCount : '';
+        }
+        
+        // Helper function to format time
+        function formatTime(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) {
+                return 'Just now';
+            } else if (diffMins < 60) {
+                return `${diffMins}m ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours}h ago`;
+            } else if (diffDays < 7) {
+                return `${diffDays}d ago`;
+            } else {
+                return date.toLocaleDateString();
             }
         }
+        
+        // Initialize the app with demo data
+        function init() {
+            // Check if user is already logged in (demo purposes)
+            const savedUser = localStorage.getItem('taisenMailUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                authScreen.style.display = 'none';
+                appScreen.style.display = 'flex';
+                userAvatar.textContent = currentUser.displayName.charAt(0).toUpperCase();
+                userEmail.textContent = currentUser.email;
+                loadEmails();
+            }
+        }
+        
+        // Run initialization when page loads
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
